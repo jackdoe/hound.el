@@ -38,6 +38,7 @@
 (require 'web)
 (require 'cl-lib)
 (require 'compile)
+(require 'cl)
 
 ;;; ----------------------------------------------------------------------------
 ;;; ----- Customizable vars
@@ -85,15 +86,20 @@ so that we can locate and open the file."
 
 ;;; ----------------------------------------------------------------------------
 ;;; ----- HTTP request to grab search results
+(defun hound/filter-tokens (x)
+  (string-match "^@" x))
 
 (defun hound/get-query-hash (query)
-  (let ((hash (make-hash-table :test 'equal)))
-    (puthash 'stats "fosho" hash)
-    (puthash 'rng ":" hash) ;; this gets all of the results - consider making this 20 or so as a default
-    (puthash 'files nil hash)
-    (puthash 'i "nope" hash)
-    (puthash 'q query hash)
-    hash))
+  (let ((hash (make-hash-table :test 'equal))
+        (splitted-query (split-string query " ")))
+    (let ((modified-query (mapconcat 'identity (remove-if 'hound/filter-tokens splitted-query) " "))
+          (file-re (mapconcat 'identity (mapcar (lambda (x) (substring x 1)) (remove-if-not 'hound/filter-tokens splitted-query)) ".*")))
+      (puthash 'stats "fosho" hash)
+      (puthash 'rng ":" hash) ;; this gets all of the results - consider making this 20 or so as a default
+      (puthash 'i "nope" hash)
+      (puthash 'q modified-query hash)
+      (puthash 'files (if (> (length file-re) 0) file-re nil) hash)
+      hash)))
 
 (defun hound/get-search-url (query api-p)
   (let ((base (if api-p
